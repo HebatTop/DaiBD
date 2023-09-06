@@ -1,0 +1,286 @@
+---
+title: "Math stuff for pyspark"
+abstract: "A brief summary of our ideas."
+keywords: "Statistics, Regression, Forecasting"
+
+course: Statistics (Prof. Dr. Buchwitz)
+supervisor: Prof. Dr. Buchwitz
+city: Meschede
+
+# List of Authors
+author:
+- familyname: Ulbrich
+  othernames: Patrick Adrian
+  address: "MatNr: 123454678"
+  qualifications: "Business Administration (BA, 2. Semester)"
+  email: curie.marie@fh-swf.de
+  correspondingauthor: true
+
+
+# Language Options
+german: false # German Dummy Text
+lang: en-gb   # Text Language: en-gb, en-us, de-de
+
+# Indexes
+toc: true     # Table of Contents
+lot: false    # List of Tables
+lof: false    # List of Figures
+
+# Output Options
+bibliography: references.bib
+biblio-style: authoryear-comp
+blind: false
+cover: true
+checklist: true
+output:
+  fhswf::seminarpaper:
+    fig_caption: yes
+    fig_height: 5
+    fig_width: 8
+    keep_tex: no
+    number_sections: yes
+    citation_package: biblatex
+knit: fhswf::render_seminarpaper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, cache=FALSE, messages=FALSE, warning=FALSE, 
+                      attr.source='.numberLines', singlespacing = TRUE)
+fhswf::fhswf_hooks()
+
+# Load Packages
+library(fhswf)
+```
+
+
+
+# Singular Value Decomposition (SVD)
+
+In the following two chapters the singular value decomposition (SVD) will be briefly explained. In the first subchapter the mathematical background will be layed out. In the second subchapter short references to the implementation of SVD in PySpark will be made. The focus is set on the main things that are important for understanding the general concept of SVD and the implementation in PySpark. References to additional mathematical proofs are made. 
+
+## Mathematical Background
+
+A singular value decomposition (SVD) is mainly used to determine the pseudo-inverse of a matrix to solve the linear system of equations that is represented by the matrix. A pseudo-inverse is a generalized inverse matrix. According to @Burg2012[p. 354, definition 3.37], a matrix G must satisfy the following conditions (\ref{eq:cond_1}) and (\ref{eq:cond_2}) to be referred to as a pseudo-inverse:
+\begin{equation}
+AGA = A
+\label{eq:cond_1}
+\end{equation}
+
+\begin{equation}
+GAG = G
+\label{eq:cond_2}
+\end{equation}
+
+To be called a *Moore-Penrose-Inverse* the following condition (\ref{eq:cond_3}) also has to be met.
+
+\begin{equation}
+AG\,und\,GA\,are\,symmetrical
+\label{eq:cond_3}
+\end{equation}
+
+The Moore-Penrose inverse is denoted by $A^{\dagger}$.
+
+Furthermore, the general form of a SVD can be written as shown in equation (\ref{eq:svd}) [@Burg2012, p. 354, equation 3.425].
+
+\begin{equation}
+A = U
+\begin{bmatrix}
+    S & 0   \\
+    0 & 0
+\end{bmatrix}
+V^T
+\label{eq:svd}
+\end{equation}
+
+An alternative way of writing this equation is shown in equation (\ref{eq:svd_sigma}) [@Duvvuri2016, p. 251 - 252].
+
+\begin{equation}
+A = U \Sigma V^T
+\label{eq:svd_sigma}
+\end{equation}
+
+The matrices have the following properties:
+
+- $A$ is the original matrix with *m-rows* and *n-columns*
+- $U$ is a column-orthonormal matrix with *m-rows* and *r columns*
+- $V^T$ is the transpose of a column-orthonormal matrix with *n-rows* and *r columns*
+- $\Sigma$ is an $r \times r$ diagonal matrix containing non-negative real numbers
+
+The vectors in $U$ are also called the left-singular vectors of $A$. Respectively, the vectors in $V$ are called the right-singular vectors of $A$ [@pyspark_svd]. The elements of $\Sigma \in \text{Mat}(r ;R)$ are non-negative and arranged in descending order. These diagonal values are called the singular values of Matrix $A$, which is why the equation (\ref{eq:svd}) is called the singular value decomposition of $A$.
+
+It is further assumed that for each matrix $A \in \text{Mat}(m,n ;R)$ there is exactly one Moore-Penrose inverse. The following equation (\ref{eq:svd_inverse}) is from @Burg2012[p.355 equation 3.427]. The complete mathematical proof of this assumption is not part of this study and can be found in @Burg2012[p. 355 - p. 357].
+
+\begin{equation}
+A^\dagger = V
+\begin{bmatrix}
+    S^{-1} & 0   \\
+    0 & 0
+\end{bmatrix}
+U^T \in \text{Mat}(n, m; \mathbb{R})
+\label{eq:svd_inverse}
+\end{equation}
+
+The final step in solving the system of linear equations is to find the optimal solution by utilizing the Moore-Penrose-Inverse. According to @Burg2012[p. 357 Satz 3.86], with the Moore-Penrose-Inverse $A^\dagger \in \text{Mat}(n,m;\mathbb{R})$, an original matrix $A \in \text{Mat}(n,m;\mathbb{R})$ and a given $b \in \mathbb{R}^m$, the following equation (\ref{eq:svd_solution_set}) is the solution set of the linear optimization problem.
+
+\begin{equation}
+x = A^\dagger b + y - A^\dagger Ay \quad \text{mit} \quad y \in \mathbb{R}^n
+\label{eq:svd_solution_set}
+\end{equation}
+
+Derived from that the optimal solution is shown in equation (\ref{eq:svd_optimal}).
+
+\begin{equation}
+\hat{x} = A^\dagger b
+\label{eq:svd_optimal}
+\end{equation}
+
+As shown, the SVD is mainly a way to calculate the Moore-Penrose-Inverse, which then is used to find the optimal solution for the given matrix. There are multiple methods to calculate the SVD to determine the corresponding matrices shown in equation (\ref{eq:svd}). Typical methods are:
+
+1. Jacobi Method
+2. Golub-Kahan-Reinsch algorithm 
+3. Divide-and-Conquer method
+
+One way of thinking about the singular value decomposition is that the matrix $\Sigma$ in equation (\ref{eq:svd_sigma}) contains the strength of the corresponding components in the two other matrices [@Duvvuri2016, p. 252]. So one additional way of approximately solving numerical problems (or doing lossy image or data compression in general) is to set the values in the matrix $\Sigma$ of lower magnitude to zero to reduce the number of relevant rows in the remaining two matrices. 
+
+## implementation in PySpark
+
+Apache Spark uses two ways to perform the SVD, depending on the absolute size of the number of rows n or the size of n compared to the number of columns k [@spark_svd]. In the case that n is small (n < 100) or n is small compared to k (n/2 < k) "the Gramian matrix (is computed) first and then the top eigenvalues and eigenvectors are locally computed on the driver" [@spark_svd]. In all other cases $(A^T A)v$ is calculated "in a distributive way and send (...) to ARPACK to compute (ATA)’s top eigenvalues and eigenvectors on the driver node" [@spark_svd]. 
+
+It is possible to use an additional optimization step to decrease the calculation time by only taking the top *k* singular values into consideration as described in @Duvvuri2016[p. 252] by setting the parameter k to a specific value [@pyspark_svd]. In our implementation we chose to not use this optimization to arrive at the most accurate solution (k=k, referred to as just k in the first parameter in our function call).
+
+
+\newpage
+
+# QR Dekomposition:
+
+This section describes the theoretical basics of QR decomposition. Following on from that, the second part deals with the mathematical basics. In the third chapter, instructions for the implementation of QR decomposition in PySpark are given. The focus here is on the central aspects that are important for a basic understanding of the QR concept as well as the implementation in PySpark.
+
+
+##	Theoretical basics
+Note that the Gram-Schmidt method is used to transform a linearly independent set of vectors into an orthonormal vectorset. In other words, a vector set that has the standard of unity and is orthogonal to each other.
+
+Given a **K x L** matrix **A**, its columns are labeled $$A_1, ..., A_L.$$ When these columns are linearly independent, they can be transformed into a set of orthonormal column vectors $$Q_1, ..., Q_L$$ using the Gram-Schmidt method, in which normalization and projection steps alternate. These steps will be presented in the next chapter about mathematical basics.
+
+
+##	Mathematical basics
+
+As already mentioned in the theoretical basics, the QR decomposition is used to describe a matrix with linear independent columns as a product of a matrix Q with orthonormal columns and an upper triangular matrix.
+According to  Burg2012(p. 310, definition 3.69), a QR decomposition can be performed under the following conditions:
+
+Any regular matrix A can be decomposed into a product **A = QR**, where **Q** is an orthogonal matrix and **R** is a regular triangular matrix. Q is a product of at most **(n - 1)** reflections.
+
+**Proof:**
+
+Assume that (\ref{eq:cond_9}) and (\ref{eq:cond_10}). If (\ref{eq:cond_11}), then set **S(1) := E**. If (\ref{eq:cond_12}), then we form with (\ref{eq:cond_13}) the reflection (\ref{eq:cond_14}).
+
+\begin{equation} 
+A =  [a_1, ..., a_n] 
+\label{eq:cond_9} 
+\end{equation}
+
+\begin{equation} 
+E = [e_1, ..., e_n]
+\label{eq:cond_10} 
+\end{equation}
+
+\begin{equation} 
+a_1 = |a_1|e_1
+\label{eq:cond_11} 
+\end{equation}
+
+\begin{equation} 
+a_1 = |a_1|e_1
+\label{eq:cond_12} 
+\end{equation}
+
+\begin{equation} 
+u = \frac{a_1 - |a_1|e_1}{|a_1 - |a_1|e_1|}
+\label{eq:cond_13} 
+\end{equation}
+
+\begin{equation} 
+S^{(1)} := S_u
+\label{eq:cond_14} 
+\end{equation}
+
+
+For this we calculate (\ref{eq:cond_15})  and thereof (\ref{eq:cond_16}) with (\ref{eq:cond_17}).
+
+\begin{equation} 
+S^{(1)}a_1 = |a_1|e_1
+\label{eq:cond_15} 
+\end{equation}
+
+\begin{equation} 
+A^{(2)} := S^{(1)}A = \left[\begin{array} {rrr} r_{11} & * \\ 0 & A \\ \end{array}\right]
+\label{eq:cond_16} 
+\end{equation}
+
+\begin{equation} 
+ r_{11} = |a_1|
+\label{eq:cond_17} 
+\end{equation}
+
+
+
+The same step is now performed for **A2**, which means that a mirror **S2** is formed in (\ref{eq:cond_18}) (or **S2 = unit matrix**), so that in **S2 A2** the first column is filled only with an **r22 > 0**. All the other elements of this column are zero. With (\ref{eq:cond_19}) follows (\ref{eq:cond_20}).
+
+Proceeding in this way, in the end we obtain  (\ref{eq:cond_21}), where R is a right triangular matrix. It is regular because the left side is regular. With (\ref{eq:cond_22}) follows **A = QR** and therefore the proof of the theorem.
+
+\begin{equation} 
+\mathbb{R}^{n-1}
+\label{eq:cond_18} 
+\end{equation}
+
+\begin{equation} 
+S^{(2)} = \begin{bmatrix}1 & 0\\ 0 & S_{2} \end{bmatrix}
+\label{eq:cond_19} 
+\end{equation}
+
+\begin{equation} 
+A^{(3)} := S^{(2)}A^{(2)} =  \begin{bmatrix}r_{11} & * & ...*\\ 0 & r_{22} & *...* \\ & & A_{3} \end{bmatrix}
+\label{eq:cond_20} 
+\end{equation}
+
+\begin{equation} 
+S^{(n-1)}S^{(n-2)}...S^{(2)}S^{(1)}A = R
+\label{eq:cond_21} 
+\end{equation}
+
+\begin{equation} 
+\mathbb{Q} = S^{(1)}S^{(2)}...S^{(n-1)}
+\label{eq:cond_22} 
+\end{equation}
+
+
+
+## Implementation in PySpark
+
+In the implementation in PySpark, according to the information from (Apache Spark 2023), a RowMatrix is created from a vector instance. With this RowMatrix, it is possible to perform various statistical summaries of the columns as well as decompositions. An important decomposition in this scope is the QR decomposition, which takes the form A = QR. Here Q stands for an orthogonal matrix and R for an upper triangular matrix. This type of decomposition enables efficient calculations and analysis of large datasets in Spark environments.
+
+
+
+
+
+
+\newpage
+
+# Citation
+
+References can be cited in three different ways.
+
+@Fahrmeir2016
+
+@Fahrmeir2016[p. 1058]
+
+[@Fahrmeir2016, p. 1058]
+
+\newpage
+
+# Technical Appendix {-}
+
+```{r, echo = TRUE}
+Sys.time()
+sessionInfo()
+```
+
