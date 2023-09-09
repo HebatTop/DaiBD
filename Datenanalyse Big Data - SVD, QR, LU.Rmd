@@ -159,13 +159,13 @@ This section describes the theoretical basics of QR decomposition. Following on 
 ##	Theoretical basics
 Note that the Gram-Schmidt method is used to transform a linearly independent set of vectors into an orthonormal vectorset. In other words, a vector set that has the standard of unity and is orthogonal to each other.
 
-Given a **K x L** matrix **A**, its columns are labeled $$A_1, ..., A_L.$$ When these columns are linearly independent, they can be transformed into a set of orthonormal column vectors $$Q_1, ..., Q_L$$ using the Gram-Schmidt method, in which normalization and projection steps alternate. These steps will be presented in the next chapter about mathematical basics.
+Given a **K x L** matrix **A**, its columns are labeled $$A_1, ..., A_L.$$ When these columns are linearly independent, they can be transformed into a set of orthonormal column vectors $$Q_1, ..., Q_L$$ using the Gram-Schmidt method, in which normalization and projection steps alternate. These steps will be presented in the next chapter about mathematical basics [@QR_decomposition].
 
 
 ##	Mathematical basics
 
 As already mentioned in the theoretical basics, the QR decomposition is used to describe a matrix with linear independent columns as a product of a matrix Q with orthonormal columns and an upper triangular matrix.
-According to  Burg2012(p. 310, definition 3.69), a QR decomposition can be performed under the following conditions:
+According to  @Burg2012[p. 310, definition 3.69], a QR decomposition can be performed under the following conditions:
 
 Any regular matrix A can be decomposed into a product **A = QR**, where **Q** is an orthogonal matrix and **R** is a regular triangular matrix. Q is a product of at most **(n - 1)** reflections.
 
