@@ -68,12 +68,17 @@ knitr::include_graphics("./fig/Performance_scaling.pdf")
 knitr::include_graphics("./fig/Performance_scaling_log.pdf")
 ```
 
+## Node scalability
 
+To evaluate the horizontal compute scaling capabilities, we analized the runtime for the same amount of data with different cluster sizes. Expectedly, the results show, that increasing the cluster size reduced the runtime, with increasing effectiveness as the amount of data increases. Figure \@ref(fig:clusterscaling) shows, that performing the calculations on a cluster for `n=100` increases the runtime, which is obvious since a lot of overhead work has to be done in order to distribute the tiny workload, which itself takes a lot longer than the actual computation. The map-reduce LU implementation obviously fails on more than eight nodes, since the rows are evenly distributed in the cluster and each node does not have enough datapoints to compute the coefficients. For $n=10^4$ eight node seems to be an efficient sizing, for $n=3\cdot 10^5$ 32 nodes bring a considerable performance improvement, while the improvement of 32 -> 64 nodes for $n=6\cdot 10^5$ does not improve computation time significantly.
 
+```{r clusterscaling, echo = FALSE, message=FALSE, fig.align='center', fig.cap='Comparision of runtimes for the same amounts of data on different cluster sizes, with k=10', out.width='1\\linewidth', fig.pos='H'}
+knitr::include_graphics("./fig/Cluster_scaling.pdf")
+```
 
+## Conclusion
 
-
-
+The results show, that the implemented methods are scaleable, with ~$O(N)$ for SVD and QR and ~$O(log(N))$ for the map-reduce LU implementation (Fig. \@ref(fig:PerformanceScaleing)). Each implementation scales well with increasing cluster sizes.
 
 
 
