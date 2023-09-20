@@ -1,0 +1,89 @@
+---
+title: "Math stuff for pyspark"
+abstract: "A brief summary of our ideas."
+keywords: "Statistics, Regression, Forecasting"
+
+course: Statistics (Prof. Dr. Buchwitz)
+supervisor: Prof. Dr. Buchwitz
+city: Meschede
+
+# List of Authors
+author:
+- familyname: Giesler
+  othernames: Casimir
+  address: "MatNr: 123454678"
+  qualifications: "Business Administration (BA, 2. Semester)"
+  email: curie.marie@fh-swf.de
+  correspondingauthor: true
+
+
+# Language Options
+german: false # German Dummy Text
+lang: en-gb   # Text Language: en-gb, en-us, de-de
+
+# Indexes
+toc: false     # Table of Contents
+lot: false    # List of Tables
+lof: false    # List of Figures
+
+# Output Options
+bibliography: references.bib
+biblio-style: authoryear-comp
+blind: false
+cover: false
+checklist: false
+output:
+  fhswf::seminarpaper:
+    fig_caption: yes
+    fig_height: 5
+    fig_width: 8
+    keep_tex: no
+    number_sections: yes
+    citation_package: biblatex
+knit: fhswf::render_seminarpaper
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, cache=FALSE, messages=FALSE, warning=FALSE, 
+                      attr.source='.numberLines', singlespacing = TRUE)
+fhswf::fhswf_hooks()
+
+# Load Packages
+library(fhswf)
+```
+\newpage
+
+# Performance measurement
+
+To evaluate the scalability of the different implementation, both in rows and columns as well as in cluster size, the DUS Airports Hadoop cluster is used. The Spark native implementation `pyspark.ml.regression.LinearRegression` is used as baseline. Each permutation of number of rows, number of columns, number of nodes and applied algorithm is measured at least five times.
+
+## Data scalability
+The test shows, that the custom implementations perform significantly worse than the PySpark implementation, except the map-reduce LU implementation which is the only method which performs better than the PySpark implementation. QR consistently performs worst, as visualized in figures \@ref(fig:PerformanceScaleing) and \@ref(fig:PerformanceScaleinglog). Besides the worse performance, the QR and SVD implementations still show a linear algorithmic complexity and are somewhat scaleable.
+
+```{r PerformanceScaleing, echo = FALSE, message=FALSE, fig.align='center', fig.cap='Runtime comparision for the different implementations with linear scale', out.width='1\\linewidth', fig.pos='H'}
+knitr::include_graphics("./fig/Performance_scaling.pdf")
+```
+
+```{r PerformanceScaleinglog, echo = FALSE, message=FALSE, fig.align='center', fig.cap='Runtime comparision for the different implementations with logarithmic scale', out.width='1\\linewidth', fig.pos='H'}
+knitr::include_graphics("./fig/Performance_scaling_log.pdf")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
