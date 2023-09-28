@@ -78,15 +78,12 @@ y=\vec{x}\cdot\vec{\beta}
 (\#eq:gendatay)
 \end{equation}
 
-Applying this function produces an RDD where the first element is the x-vector, and the second element is the target variable.
-The resulting feature matrix (consisting out of $n$ $\vec{x}$ vectors) therefore consists out of $k$ columns, where every column is linearly dependent on the first column, plus additional noise.
-An exemplary distribution is visualized in figure \@ref(fig:generatedData).
+Applying this function will produce an RDD where the first element is the x-vector while the second element is the target variable.
+
+Therefore, the final outcome is a feature matrix (consisting of $n$ $\vec{x}$ vectors) that consists out of $k$ columns, where each column is linearly dependent on the first column, with additional noise.
+An example of a distribution is shown in the figure \@ref(fig:generatedData).
 
 ```{r generatedData, echo = FALSE, message=FALSE, fig.align='center', fig.cap='exemplary generated dataset', out.width='1\\linewidth', fig.pos='H'}
 knitr::include_graphics("./fig/fig_data_creation.pdf")
 ```
-
-
-
-
 
