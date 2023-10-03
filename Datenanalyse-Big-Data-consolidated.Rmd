@@ -355,7 +355,7 @@ Then the coefficients can be taken from the solution vector.
 ## Implementation in PySpark
 
 Since there is no direct function for LU decomposition like for QR or SVD included in PySpark, a data parallelism or divide and conquer approach is taken for this. The dataset is divided into equal parts and then the LU decomposit is performed separately for each of these parts. As the variables have a moderately pronounced covariance structure, a weighted average of all parts can be generated. 
-**As it is shown in @partitioned_reg[p. 12 - 16] it is possible to reformualte a regression problem by dividing it in subproblems in this way.**
+**As it is shown in @partitioned_reg[p. 12 - 16] it is possible to reformulate a regression problem by dividing it in partitioned subproblems.**
 
 In the program, the first step is to create the function which calculates the coefficients using the LU decomposition. As an input the function gets a pandas dataframe with the matrix $A$ (features) and the corresponding values $b$ (y). To use the *lu_factor* function [@SciPy2023luf] and the *lu_solve* function [@SciPy2023lus] from the Scipy library, first a Numpy array is created from $A$. 
 Following the principle from \@ref(eq:firststep), the function *lu_factor* first calculates the LU decomposition from $A$ and stores the $LU$ matrix and the $P$ matrix. Then the *lu_solve* function performs steps 2,3 and 4 from \@ref(eq:firststep). The calculated coefficient values $x$ (betas) are returned with the number of rows of the partial data set $A$ (sampleCounts) as Pandas DataFrame.
