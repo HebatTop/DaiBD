@@ -1,21 +1,37 @@
 ---
-title: "Math stuff for pyspark"
-abstract: "A brief summary of our ideas."
-keywords: "Statistics, Regression, Forecasting"
+title: "Distributed OLS 1a"
+# abstract: "A brief summary of our ideas."
+# keywords: "Statistics, Regression, Forecasting"
 
-course: Statistics (Prof. Dr. Buchwitz)
+course: Datenanalyse in Big Data
 supervisor: Prof. Dr. Buchwitz
 city: Meschede
 
 # List of Authors
 author:
+- familyname: Giesler
+  othernames: Casimir
+  address: "MatNr: 123454678"
+  email: giesler.casimir@fh-swf.de
+  correspondingauthor: true
+  
+- familyname: Metzner
+  othernames: Hendrik
+  address: "MatNr: 123454678"
+  email: metzner.hendrik@fh-swf.de
+  correspondingauthor: true
+  
+- familyname: Eker
+  othernames: Sinan
+  address: "MatNr: 123454678"
+  email: eker.sinan@fh-swf.de
+  correspondingauthor: true
+
 - familyname: Ulbrich
   othernames: Patrick Adrian
   address: "MatNr: 123454678"
-  qualifications: "Business Administration (BA, 2. Semester)"
-  email: curie.marie@fh-swf.de
+  email: ulbrich.patrick@fh-swf.de
   correspondingauthor: true
-
 
 # Language Options
 german: false # German Dummy Text
@@ -31,7 +47,7 @@ bibliography: references.bib
 biblio-style: authoryear-comp
 blind: false
 cover: true
-checklist: true
+checklist: false
 output:
   fhswf::seminarpaper:
     fig_caption: yes
@@ -51,8 +67,6 @@ fhswf::fhswf_hooks()
 # Load Packages
 library(fhswf)
 ```
-
-
 
 # Singular Value Decomposition (SVD)
 
@@ -255,8 +269,6 @@ S^{(n-1)}S^{(n-2)}...S^{(2)}S^{(1)}A = R
 \label{eq:cond_22} 
 \end{equation}
 
-
-
 ## Implementation in PySpark
 
 In the implementation in PySpark, according to the information from (Apache Spark 2023), a RowMatrix is created from a vector instance. With this RowMatrix, it is possible to perform various statistical summaries of the columns as well as decompositions. An important decomposition in this scope is the QR decomposition, which takes the form A = QR. Here Q stands for an orthogonal matrix and R for an upper triangular matrix. This type of decomposition enables efficient calculations and analysis of large datasets in Spark environments.
@@ -270,7 +282,6 @@ In the next step, the transpose of the Q matrix is formed. Since the RowMatrix i
 Subsequently, the values of the dependent variable "y" are represented as a single-column matrix. In order to multiply "y" with a RawMatrix, a compatible data structure is required. PySpark offers the DenseMatrix as a suitable multiplicant. To create the DenseMatrix accordingly, the data array is required in addition to the input parameters numRows and numCols [@spark_DM]. To achieve this, dataDF.select("y").toPandas().to_numpy().ravel() converts the column "y" from the DataFrame "dataDF" into a pandas dataframe and finally into a Numpy array. With ravel() an exclusively one-dimensional vector is stored.
 
 Finally, the matrix multiplications are performed. For this, in the first step "Q_T" and "y" are multiplied with multiply, a function from the PySpark framework. With rows.collect() the calculations of the Spark driver nodes are returned to a local data structure, in this case a Python list is suitable.  With np.matmul(), the matrices are multiplied together locally after appropriate conversion. Thus the matrix multiplication k x k * k x 1 is available. In the end, the results of the OLS estimation, the true betas and the total execution time are output. The implementation enables efficient and distributed processing of matrix operations by using Apache Spark, and local matrix multiplication by applying the Numpy library.
-
 
 \newpage
 
@@ -312,16 +323,6 @@ To split the dataset, the function *.groupBy(spark_partition_id)* is used. This 
 
 The return of the function *.applyinpands()* is a DataFrame which contains the coefficients (betas) for each of the parts of the data set, calculated by *lu_solve*, and the number of records (sampleCounts) of the data part. The number of records is required to calculate a weighted average of the result coefficients of the return DataFrame. This weighted average is calculated at the end of the program and contains the result vector of the linear equation system.
 
-# Citation
-
-References can be cited in three different ways.
-
-@Fahrmeir2016
-
-@Fahrmeir2016[p. 1058]
-
-[@Fahrmeir2016, p. 1058]
-
 \newpage
 
 # Technical Appendix {-}
@@ -330,4 +331,3 @@ References can be cited in three different ways.
 Sys.time()
 sessionInfo()
 ```
-
