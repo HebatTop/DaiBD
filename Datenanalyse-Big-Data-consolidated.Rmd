@@ -13,25 +13,25 @@ author:
   othernames: Casimir
   address: "MatNr: 123454678"
   email: giesler.casimir@fh-swf.de
-  correspondingauthor: true
+  correspondingauthor: false
   
 - familyname: Metzner
   othernames: Hendrik
   address: "MatNr: 123454678"
   email: metzner.hendrik@fh-swf.de
-  correspondingauthor: true
+  correspondingauthor: false
   
 - familyname: Eker
   othernames: Sinan
   address: "MatNr: 123454678"
   email: eker.sinan@fh-swf.de
-  correspondingauthor: true
+  correspondingauthor: false
 
 - familyname: Ulbrich
   othernames: Patrick Adrian
   address: "MatNr: 123454678"
   email: ulbrich.patrick@fh-swf.de
-  correspondingauthor: true
+  correspondingauthor: false
 
 # Language Options
 german: false # German Dummy Text
