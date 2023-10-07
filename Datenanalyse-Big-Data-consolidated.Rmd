@@ -13,25 +13,25 @@ author:
   othernames: Casimir
   address: "MatNr: 123454678"
   email: giesler.casimir@fh-swf.de
-  correspondingauthor: true
+  correspondingauthor: false
   
 - familyname: Metzner
   othernames: Hendrik
   address: "MatNr: 123454678"
   email: metzner.hendrik@fh-swf.de
-  correspondingauthor: true
+  correspondingauthor: false
   
 - familyname: Eker
   othernames: Sinan
   address: "MatNr: 123454678"
   email: eker.sinan@fh-swf.de
-  correspondingauthor: true
+  correspondingauthor: false
 
 - familyname: Ulbrich
   othernames: Patrick Adrian
   address: "MatNr: 123454678"
   email: ulbrich.patrick@fh-swf.de
-  correspondingauthor: true
+  correspondingauthor: false
 
 # Language Options
 german: false # German Dummy Text
@@ -68,9 +68,46 @@ fhswf::fhswf_hooks()
 library(fhswf)
 ```
 
+# Simulation of a Dataset
+
+In order to generate a large dataset which fulfills the requirements ($n \gg 10^9, k\gg 10^5$), the generation of the values needs to be done in a distributed fashion. PySpark does not have a pre-defined function to generate an entire dataset suited for OLS, therefore this function is implemented manually.
+At first, the following values need to be initialized:
+
+* `n` - number of rows/samples
+* `k` - number of columns/features 
+* $\vec{\beta}$ - beta, the coefficients of the function 
+* `cov` - a covariance vector that determines the covariance to the first column for each column
+
+In this implementation, `n` and `k` need to be set by the user while $\vec{\beta}$ and `cov` are generated randomly by numpy.
+For generating the actual dataset, `pyspark.mllib.random.RandomRDDs.normalVectorRDD(sc, n, k)` is used. This function creates an `rdd` containing `n` vectors, each containing `k` entries, where each entry is generated from a standard-normal distribution.
+
+After generating this random noise matrix, the user-defined-function `createRow(noise)` is applied to the `rdd`, which returns two values, $\vec{x}$ \@ref(eq:gendatax) and $y$ \@ref(eq:gendatay). 
+
+With `noise` as $\epsilon$ and `cov` as $c$:
+\begin{equation} 
+\vec{x} = (\epsilon_0, \epsilon_0c_1+\epsilon_1, \dots, \epsilon_0c_i+\epsilon_i)
+(\#eq:gendatax)
+\end{equation}
+
+\begin{equation}
+y=\vec{x}\cdot\vec{\beta}
+(\#eq:gendatay)
+\end{equation}
+
+Applying this function will produce an RDD where the first element is the x-vector while the second element is the target variable.
+
+Therefore, the final outcome is a feature matrix (consisting of $n$ $\vec{x}$ vectors) that consists out of $k$ columns, where each column is linearly dependent on the first column, with additional noise.
+An example of a distribution is shown in the figure \@ref(fig:generatedData).
+
+```{r generatedData, echo = FALSE, message=FALSE, fig.align='center', fig.cap='exemplary generated dataset', out.width='1\\linewidth', fig.pos='H'}
+knitr::include_graphics("./fig/fig_data_creation.pdf")
+```
+
+\newpage
+
 # Singular Value Decomposition (SVD)
 
-In the following two chapters the singular value decomposition (SVD) will be briefly explained. In the first subchapter the mathematical background will be layed out. In the second subchapter short references to the implementation of SVD in PySpark will be made. The focus is set on the main things that are important for understanding the general concept of SVD and the implementation in PySpark. References to additional mathematical proofs are made. 
+In the following two subchapters the singular value decomposition (SVD) will be briefly explained. In the first subchapter the mathematical background will be layed out. In the second subchapter references to the implementation of SVD in PySpark will be made. The focus is set on the main things that are important for understanding the general concept of SVD and the implementation in PySpark. References to additional mathematical proofs are also provided. 
 
 ## Mathematical Background
 
@@ -88,7 +125,7 @@ GAG = G
 To be called a *Moore-Penrose-Inverse* the following condition (\ref{eq:cond_3}) also has to be met.
 
 \begin{equation}
-AG\,und\,GA\,are\,symmetrical
+AG\,and\,GA\,are\,symmetrical
 \label{eq:cond_3}
 \end{equation}
 
@@ -154,17 +191,17 @@ As shown, the SVD is mainly a way to calculate the Moore-Penrose-Inverse, which 
 2. Golub-Kahan-Reinsch algorithm 
 3. Divide-and-Conquer method
 
-One way of thinking about the singular value decomposition is that the matrix $\Sigma$ in equation (\ref{eq:svd_sigma}) contains the strength of the corresponding components in the two other matrices [@Duvvuri2016, p. 252]. So one additional way of approximately solving numerical problems (or doing lossy image or data compression in general) is to set the values in the matrix $\Sigma$ of lower magnitude to zero to reduce the number of relevant rows in the remaining two matrices. 
+One way of thinking about the singular value decomposition is that the matrix $\Sigma$ in equation (\ref{eq:svd_sigma}) contains the strength of the corresponding components in the two other matrices [@Duvvuri2016, p. 252]. So one additional way of approximately solving numerical problems (or doing lossy image or data compression in general) is to set the values in the matrix $\Sigma$ below a lower magnitude threshold to zero to reduce the number of relevant rows in the remaining two matrices. 
 
 ## implementation in PySpark
 
 Apache Spark uses two ways to perform the SVD, depending on the absolute size of the number of rows n or the size of n compared to the number of columns k [@spark_svd]. In the case that n is small (n < 100) or n is small compared to k (n/2 < k) "the Gramian matrix (is computed) first and then the top eigenvalues and eigenvectors are locally computed on the driver" [@spark_svd]. In all other cases $(A^T A)v$ is calculated "in a distributive way and send (...) to ARPACK to compute (ATA)’s top eigenvalues and eigenvectors on the driver node" [@spark_svd]. 
 
-It is possible to use an additional optimization step to decrease the calculation time by only taking the top *k* singular values into consideration as described in @Duvvuri2016[p. 252] by setting the parameter k to a specific value [@pyspark_svd]. In our implementation we chose to not use this optimization to arrive at the most accurate solution (k=k, referred to as just k in the first parameter in our function call).
+It is possible to use an additional optimization step to decrease the calculation time by only taking the top *k* singular values into consideration as described in @Duvvuri2016[p. 252] by setting the parameter k to a specific value [@pyspark_svd]. In our implementation we chose to not use this optimization to arrive at the most accurate solution.
 
-The values for $S$, $V$ and $U$ in relation to equation (\ref{eq:svd}) are printed in the Jupyter Notebook. It is important to note that the matrix $U$ is a distributed RowMatrix. Since a distributed RowMatrix stores data in a distributed manner, it lacks the concept of row order, which is necessary for transposing a matrix. As we require the transpose $U^T$ of matrix $U$ for equation (\ref{eq:svd_inverse}), the RowMatrix $U$ is transformed into a CoordinateMatrix and transposed. After transposing the matrix it is transformed back into a RowMatrix and saved as *U_T*.
+The values for $S$, $V$ and $U$ in relation to equation (\ref{eq:svd}) are printed in the Jupyter Notebook *DAiBD.ipynb* that can be found in the appendix. It is important to note that the matrix $U$ is a distributed RowMatrix. Since a distributed RowMatrix stores data in a distributed manner, it lacks the concept of row order, which is necessary for transposing a matrix. As we require the transpose $U^T$ of matrix $U$ for equation (\ref{eq:svd_inverse}), the RowMatrix $U$ is transformed into a CoordinateMatrix and transposed. After transposing the matrix it is transformed back into a RowMatrix and saved as *U_T*.
 
-In the final *Results* block the results of the SVD are calculated. In the first line *step1*, the product of the transpose of the matrix $U$, obtained from the SVD, and the target variable $y$ is computed. $y$ is a DenseMatrix and was created in the QR part of the Notebook. In *step2*, the result from step1 is transformed into a NumPy array. This array is flattened using the ravel() method and then divided by the corresponding singular values previously computed and stored in *svd.s*. Next the right singular matrix $V$ is transformed into a NumPy matrix. Subsequently the linear regression coefficients *SVD_coeeffs* are calculated by performing matrix multiplication between the right singular matrix $V$ and the transformed vector from step2. The coefficients are also flattened using ravel(). The SVD section concludes by printing the elapsed time for the SVD-based linear regression, by displaying the calculated coefficients based on the SVD, and by showing the real values of the coefficients, allowing for a comparison between the predicted and actual coefficients.
+In the final *Results* block in the notebook the results of the SVD are calculated. In the first line *step1*, the product of the transpose of the matrix $U$, obtained from the SVD, and the target variable $y$ is computed. $y$ is a DenseMatrix and was created in the QR part of the notebook. In *step2*, the result from step1 is transformed into a NumPy array. This array is flattened using the ravel() method and then divided by the corresponding singular values previously computed and stored in *svd.s*. Next the right singular matrix $V$ is transformed into a NumPy matrix. Subsequently the linear regression coefficients *SVD_coeeffs* are calculated by performing matrix multiplication between the right singular matrix $V$ and the transformed vector from step2. The coefficients are also flattened using ravel(). The SVD section concludes by printing the elapsed time for the SVD-based linear regression, by displaying the calculated coefficients based on the SVD, and by showing the real values of the coefficients, allowing for a comparison between the predicted and actual coefficients.
 
 \newpage
 
@@ -271,7 +308,7 @@ S^{(n-1)}S^{(n-2)}...S^{(2)}S^{(1)}A = R
 
 ## Implementation in PySpark
 
-In the implementation in PySpark, according to the information from (Apache Spark 2023), a RowMatrix is created from a vector instance. With this RowMatrix, it is possible to perform various statistical summaries of the columns as well as decompositions. An important decomposition in this scope is the QR decomposition, which takes the form A = QR. Here Q stands for an orthogonal matrix and R for an upper triangular matrix. This type of decomposition enables efficient calculations and analysis of large datasets in Spark environments.
+In the implementation in PySpark, according to the information from **(Apache Spark 2023)**, a RowMatrix is created from a vector instance. With this RowMatrix, it is possible to perform various statistical summaries of the columns as well as decompositions. An important decomposition in this scope is the QR decomposition, which takes the form A = QR. Here Q stands for an orthogonal matrix and R for an upper triangular matrix. This type of decomposition enables efficient calculations and analysis of large datasets in Spark environments.
 
 In Spark, there are several functions for calculating QR decomposition, depending on the property of the matrix at hand. In the present use case of a RowMatrix, the tallSkinnyQR() function is best suited because it is optimized specifically for RawMatrices. The computeQR() method is suitable as a generalist for any matrix, but is not optimized for any particular shape and is therefore misfit. The tallSkinnyQR() function has the boolean parameter computeQ as input parameter. With computeQ = True, both R-matrix and Q-matrix are computed. With computeQ = False only the R-matrix is calculated. For the calculation of the betas both matrices are needed, therefore the tallSkinnyQR method is passed the boolean TRUE as input parameter. The Apache Spark documentation was used as a literature source, in particular the page on the RowMatrix class [@spark_svd]. Since the dataMatrix has dimensions n x k, the QR.Q matrix has dimensions n x n and the upper triangular matrix has dimensions n x k.
 
@@ -286,9 +323,11 @@ Finally, the matrix multiplications are performed. For this, in the first step "
 \newpage
 
 # LU Decomposition
+
 The first paragraph explains the mathematical approach, with particular emphasis on its use in linear systems. The second paragraph explains the divide and conquer approach to LU decomposition of large matrices and how the PySpark and Scipy libraries are used.
 
 ## Mathematical Background
+
 In LU decomposition, a matrix $A$ is transformed into the product of matrices $L$ and $U$. The mathematical formula is: $$A=LU$$
 If problems arise during the application of the transformations, such as a division by $0$, a permutation matrix can be used. This permutation matrix also increases the robustness with limited accuracy as well as the numerical stability [@Lu2022, p. 23]. The corresponding form is: $$A=PLU$$ 
 The matrices $A,P,L$ and $U$ are defined as follows:
@@ -314,7 +353,9 @@ Then the coefficients can be taken from the solution vector.
 \newpage
 
 ## Implementation in PySpark
-Since there is no direct function for LU decomposition like for QR or SVD included in PySpark, a data parallelism or divide and conquer approach is taken for this. The dataset is divided into equal parts and then the LU decomposit is performed separately for each of these parts. As the variables have a moderately pronounced covariance structure, a weighted average of all parts can be generated.
+
+Since there is no direct function for LU decomposition like for QR or SVD included in PySpark, a data parallelism or divide and conquer approach is taken for this. The dataset is divided into equal parts and then the LU decomposit is performed separately for each of these parts. As the variables have a moderately pronounced covariance structure, a weighted average of all parts can be generated. 
+**As it is shown in @partitioned_reg[p. 12 - 16] it is possible to reformulate a regression problem by dividing it in partitioned subproblems.**
 
 In the program, the first step is to create the function which calculates the coefficients using the LU decomposition. As an input the function gets a pandas dataframe with the matrix $A$ (features) and the corresponding values $b$ (y). To use the *lu_factor* function [@SciPy2023luf] and the *lu_solve* function [@SciPy2023lus] from the Scipy library, first a Numpy array is created from $A$. 
 Following the principle from \@ref(eq:firststep), the function *lu_factor* first calculates the LU decomposition from $A$ and stores the $LU$ matrix and the $P$ matrix. Then the *lu_solve* function performs steps 2,3 and 4 from \@ref(eq:firststep). The calculated coefficient values $x$ (betas) are returned with the number of rows of the partial data set $A$ (sampleCounts) as Pandas DataFrame.
@@ -322,6 +363,96 @@ Following the principle from \@ref(eq:firststep), the function *lu_factor* first
 To split the dataset, the function *.groupBy(spark_partition_id)* is used. This function splits the dataset into $n$ equal sized partitions. $n$ corresponds to the number of different partitions of the RDD. For using the function *.applyInPandas()* each of these data partitions is passed as a Pandas data frame to the function described above. The computation now takes place paralelly in the individual Spark instances.
 
 The return of the function *.applyinpands()* is a DataFrame which contains the coefficients (betas) for each of the parts of the data set, calculated by *lu_solve*, and the number of records (sampleCounts) of the data part. The number of records is required to calculate a weighted average of the result coefficients of the return DataFrame. This weighted average is calculated at the end of the program and contains the result vector of the linear equation system.
+
+\newpage
+
+# Performance measurement
+
+To evaluate the scalability of the different implementations, both in rows and columns as well as in cluster size, the DUS Airports Hadoop cluster is used. The Spark native implementation `pyspark.ml.regression.LinearRegression` is used as baseline. Each permutation of number of rows, number of columns, number of nodes and applied algorithm is measured at least five times.
+
+## Data scalability
+
+The test shows, that the custom implementations perform significantly worse than the PySpark implementation, except the map-reduce LU implementation which is the only method which performs better than the PySpark implementation. QR consistently performs worst, as visualized in figures \@ref(fig:PerformanceScaleing) and \@ref(fig:PerformanceScaleinglog). Besides the worse performance, the QR and SVD implementations still show a linear algorithmic complexity and therefore are scaleable to some extend.
+
+```{r PerformanceScaleing, echo = FALSE, message=FALSE, fig.align='center', fig.cap='Runtime comparision for the different implementations with linear scale', out.width='1\\linewidth', fig.pos='H'}
+knitr::include_graphics("./fig/Performance_scaling.pdf")
+```
+
+```{r PerformanceScaleinglog, echo = FALSE, message=FALSE, fig.align='center', fig.cap='Runtime comparision for the different implementations with logarithmic scale', out.width='1\\linewidth', fig.pos='H'}
+knitr::include_graphics("./fig/Performance_scaling_log.pdf")
+```
+
+## Node scalability
+
+To evaluate the horizontal compute scaling capabilities, we analized the runtime for the same amount of data with different cluster sizes. Expectedly, the results show, that increasing the cluster size reduced the runtime, with increasing effectiveness as the amount of data increases. Figure \@ref(fig:clusterscaling) shows, that performing the calculations on a cluster for `n=100` increases the runtime, which is obvious since a lot of overhead work has to be done in order to distribute the tiny workload, which itself takes a lot longer than the actual computation. The map-reduce LU implementation obviously fails on more than eight nodes, since the rows are evenly distributed in the cluster and each node does not have enough datapoints to compute the coefficients. For $n=10^4$ eight node seems to be an efficient sizing, for $n=3\cdot 10^5$ 32 nodes bring a considerable performance improvement, while the improvement from 32 to 64 nodes for $n=6\cdot 10^5$ does not improve computation time significantly.
+
+```{r clusterscaling, echo = FALSE, message=FALSE, fig.align='center', fig.cap='Comparision of runtimes for the same amounts of data on different cluster sizes, with k=10', out.width='1\\linewidth', fig.pos='H'}
+knitr::include_graphics("./fig/Cluster_scaling.pdf")
+```
+
+## Conclusion
+
+The results show, that the implemented methods are scaleable, with ~$O(N)$ for SVD and QR and ~$O(log(N))$ for the map-reduce LU implementation (Fig. \@ref(fig:PerformanceScaleing)). Each implementation scales well with increasing cluster sizes.
+
+\newpage
+
+# Appendix
+
+The following 3 files contain all the relevant code and can be found in the folder named "code".
+
+\
+**1. DAiBD.ipynb**
+
+This file contains the code for generating the dataset. Additionally it contains the implementation of the PySpark linear regression as a baseline as well as the implementation of the QR, SVD and LU regressions.
+
+\
+**2. DaiBD_yarn_test.ipynb**
+
+This file contains the code for testing all implementations from the previous file. It saves the results in a csv for analyzing.
+
+\
+**3. analize_test_results.ipynb**
+
+This file contains the code for analyzing and visualizing the previous results.
+
+\newpage
+
+# Appendix - Personal Contributions
+
+\
+**Casimir Giesler**
+
+* code PySpark linear regression
+* code QR
+* code SVD
+* code LU
+* code analize_test_results.ipynb
+* code DaiBD_yarn_test.ipynb
+* Simulation of a Dataset
+* performance measurement data scalability
+* performance measurement node scalability
+* performance measurement conclusion
+
+\
+**Hendrik Metzner**
+
+* code LU
+* LU decomposition mathematical background
+* LU decomposition implementation in PySpark
+
+\
+**Sinan Eker**
+
+* QR decomposition theoretical basics
+* QR decomposition mathematical basics
+* QR decomposition implementation in PySpark
+
+\
+**Patrick Adrian Ulbrich**
+
+* SVD mathematical background 
+* SVD implementation in PySpark
+* consolidation of all parts, formating and proof-reading paper
 
 \newpage
 
