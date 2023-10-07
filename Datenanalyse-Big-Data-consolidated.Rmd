@@ -107,7 +107,7 @@ knitr::include_graphics("./fig/fig_data_creation.pdf")
 
 # Singular Value Decomposition (SVD)
 
-In the following two chapters the singular value decomposition (SVD) will be briefly explained. In the first subchapter the mathematical background will be layed out. In the second subchapter short references to the implementation of SVD in PySpark will be made. The focus is set on the main things that are important for understanding the general concept of SVD and the implementation in PySpark. References to additional mathematical proofs are made. 
+In the following two subchapters the singular value decomposition (SVD) will be briefly explained. In the first subchapter the mathematical background will be layed out. In the second subchapter references to the implementation of SVD in PySpark will be made. The focus is set on the main things that are important for understanding the general concept of SVD and the implementation in PySpark. References to additional mathematical proofs are also provided. 
 
 ## Mathematical Background
 
@@ -125,7 +125,7 @@ GAG = G
 To be called a *Moore-Penrose-Inverse* the following condition (\ref{eq:cond_3}) also has to be met.
 
 \begin{equation}
-AG\,und\,GA\,are\,symmetrical
+AG\,and\,GA\,are\,symmetrical
 \label{eq:cond_3}
 \end{equation}
 
@@ -191,17 +191,17 @@ As shown, the SVD is mainly a way to calculate the Moore-Penrose-Inverse, which 
 2. Golub-Kahan-Reinsch algorithm 
 3. Divide-and-Conquer method
 
-One way of thinking about the singular value decomposition is that the matrix $\Sigma$ in equation (\ref{eq:svd_sigma}) contains the strength of the corresponding components in the two other matrices [@Duvvuri2016, p. 252]. So one additional way of approximately solving numerical problems (or doing lossy image or data compression in general) is to set the values in the matrix $\Sigma$ of lower magnitude to zero to reduce the number of relevant rows in the remaining two matrices. 
+One way of thinking about the singular value decomposition is that the matrix $\Sigma$ in equation (\ref{eq:svd_sigma}) contains the strength of the corresponding components in the two other matrices [@Duvvuri2016, p. 252]. So one additional way of approximately solving numerical problems (or doing lossy image or data compression in general) is to set the values in the matrix $\Sigma$ below a lower magnitude threshold to zero to reduce the number of relevant rows in the remaining two matrices. 
 
 ## implementation in PySpark
 
 Apache Spark uses two ways to perform the SVD, depending on the absolute size of the number of rows n or the size of n compared to the number of columns k [@spark_svd]. In the case that n is small (n < 100) or n is small compared to k (n/2 < k) "the Gramian matrix (is computed) first and then the top eigenvalues and eigenvectors are locally computed on the driver" [@spark_svd]. In all other cases $(A^T A)v$ is calculated "in a distributive way and send (...) to ARPACK to compute (ATA)’s top eigenvalues and eigenvectors on the driver node" [@spark_svd]. 
 
-It is possible to use an additional optimization step to decrease the calculation time by only taking the top *k* singular values into consideration as described in @Duvvuri2016[p. 252] by setting the parameter k to a specific value [@pyspark_svd]. In our implementation we chose to not use this optimization to arrive at the most accurate solution (k=k, referred to as just k in the first parameter in our function call).
+It is possible to use an additional optimization step to decrease the calculation time by only taking the top *k* singular values into consideration as described in @Duvvuri2016[p. 252] by setting the parameter k to a specific value [@pyspark_svd]. In our implementation we chose to not use this optimization to arrive at the most accurate solution.
 
-The values for $S$, $V$ and $U$ in relation to equation (\ref{eq:svd}) are printed in the Jupyter Notebook. It is important to note that the matrix $U$ is a distributed RowMatrix. Since a distributed RowMatrix stores data in a distributed manner, it lacks the concept of row order, which is necessary for transposing a matrix. As we require the transpose $U^T$ of matrix $U$ for equation (\ref{eq:svd_inverse}), the RowMatrix $U$ is transformed into a CoordinateMatrix and transposed. After transposing the matrix it is transformed back into a RowMatrix and saved as *U_T*.
+The values for $S$, $V$ and $U$ in relation to equation (\ref{eq:svd}) are printed in the Jupyter Notebook *DAiBD.ipynb* that can be found in the appendix. It is important to note that the matrix $U$ is a distributed RowMatrix. Since a distributed RowMatrix stores data in a distributed manner, it lacks the concept of row order, which is necessary for transposing a matrix. As we require the transpose $U^T$ of matrix $U$ for equation (\ref{eq:svd_inverse}), the RowMatrix $U$ is transformed into a CoordinateMatrix and transposed. After transposing the matrix it is transformed back into a RowMatrix and saved as *U_T*.
 
-In the final *Results* block the results of the SVD are calculated. In the first line *step1*, the product of the transpose of the matrix $U$, obtained from the SVD, and the target variable $y$ is computed. $y$ is a DenseMatrix and was created in the QR part of the Notebook. In *step2*, the result from step1 is transformed into a NumPy array. This array is flattened using the ravel() method and then divided by the corresponding singular values previously computed and stored in *svd.s*. Next the right singular matrix $V$ is transformed into a NumPy matrix. Subsequently the linear regression coefficients *SVD_coeeffs* are calculated by performing matrix multiplication between the right singular matrix $V$ and the transformed vector from step2. The coefficients are also flattened using ravel(). The SVD section concludes by printing the elapsed time for the SVD-based linear regression, by displaying the calculated coefficients based on the SVD, and by showing the real values of the coefficients, allowing for a comparison between the predicted and actual coefficients.
+In the final *Results* block in the notebook the results of the SVD are calculated. In the first line *step1*, the product of the transpose of the matrix $U$, obtained from the SVD, and the target variable $y$ is computed. $y$ is a DenseMatrix and was created in the QR part of the notebook. In *step2*, the result from step1 is transformed into a NumPy array. This array is flattened using the ravel() method and then divided by the corresponding singular values previously computed and stored in *svd.s*. Next the right singular matrix $V$ is transformed into a NumPy matrix. Subsequently the linear regression coefficients *SVD_coeeffs* are calculated by performing matrix multiplication between the right singular matrix $V$ and the transformed vector from step2. The coefficients are also flattened using ravel(). The SVD section concludes by printing the elapsed time for the SVD-based linear regression, by displaying the calculated coefficients based on the SVD, and by showing the real values of the coefficients, allowing for a comparison between the predicted and actual coefficients.
 
 \newpage
 
@@ -452,7 +452,7 @@ This file contains the code for analyzing and visualizing the previous results.
 
 * SVD mathematical background 
 * SVD implementation in PySpark
-* consolidation of all parts and formating paper
+* consolidation of all parts, formating and proof-reading paper
 
 \newpage
 
