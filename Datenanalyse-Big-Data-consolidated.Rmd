@@ -213,19 +213,19 @@ This section describes the theoretical basics of QR decomposition. Following on 
 ##	Theoretical basics
 Note that the Gram-Schmidt method is used to transform a linearly independent set of vectors into an orthonormal vectorset. In other words, a vector set that has the standard of unity and is orthogonal to each other.
 
-Given a **K x L** matrix **A**, its columns are labeled $$A_1, ..., A_L.$$ When these columns are linearly independent, they can be transformed into a set of orthonormal column vectors $$Q_1, ..., Q_L$$ using the Gram-Schmidt method, in which normalization and projection steps alternate. These steps will be presented in the next chapter about mathematical basics [@QR_decomposition].
+Given a K x L matrix A, its columns are labeled $$A_1, ..., A_L.$$ When these columns are linearly independent, they can be transformed into a set of orthonormal column vectors $$Q_1, ..., Q_L$$ using the Gram-Schmidt method, in which normalization and projection steps alternate. These steps will be presented in the next chapter about mathematical basics [@QR_decomposition].
 
 
 ##	Mathematical basics
 
-As already mentioned in the theoretical basics, the QR decomposition is used to describe a matrix with linear independent columns as a product of a matrix Q with orthonormal columns and an upper triangular matrix.
+As already mentioned in the theoretical basics, the QR decomposition is used to describe a matrix with linear independent columns as a product of a matrix $Q$ with orthonormal columns and an upper triangular matrix.
 According to  @Burg2012[p. 310, definition 3.69], a QR decomposition can be performed under the following conditions:
 
-Any regular matrix A can be decomposed into a product **A = QR**, where **Q** is an orthogonal matrix and **R** is a regular triangular matrix. Q is a product of at most **(n - 1)** reflections.
+Any regular matrix A can be decomposed into a product $A = QR$, where $Q$ is an orthogonal matrix and $R$ is a regular triangular matrix. $Q$ is a product of at most $(n - 1)$ reflections.
 
 **Proof:**
 
-Assume that (\ref{eq:cond_9}) and (\ref{eq:cond_10}). If (\ref{eq:cond_11}), then set **S(1) := E**. If (\ref{eq:cond_12}), then we form with (\ref{eq:cond_13}) the reflection (\ref{eq:cond_14}).
+Assuming that (\ref{eq:cond_9}) and (\ref{eq:cond_10}) are given, if (\ref{eq:cond_11}) is true, then set S(1) := E. If however (\ref{eq:cond_11}) is true, then we form with (\ref{eq:cond_13}) the reflection (\ref{eq:cond_14}).
 
 \begin{equation} 
 A =  [a_1, ..., a_n] 
@@ -240,11 +240,6 @@ E = [e_1, ..., e_n]
 \begin{equation} 
 a_1 = |a_1|e_1
 \label{eq:cond_11} 
-\end{equation}
-
-\begin{equation} 
-a_1 = |a_1|e_1
-\label{eq:cond_12} 
 \end{equation}
 
 \begin{equation} 
@@ -308,15 +303,15 @@ S^{(n-1)}S^{(n-2)}...S^{(2)}S^{(1)}A = R
 
 ## Implementation in PySpark
 
-In the implementation in PySpark, according to the information from **(Apache Spark 2023)**, a RowMatrix is created from a vector instance. With this RowMatrix, it is possible to perform various statistical summaries of the columns as well as decompositions. An important decomposition in this scope is the QR decomposition, which takes the form A = QR. Here Q stands for an orthogonal matrix and R for an upper triangular matrix. This type of decomposition enables efficient calculations and analysis of large datasets in Spark environments.
+In the implementation in PySpark, according to the documentation from Apache Spark 2023, a RowMatrix is created from a vector instance. With this RowMatrix, it is possible to perform various statistical summaries of the columns as well as decompositions. An important decomposition in this scope is the QR decomposition, which takes the form A = QR. Here Q stands for an orthogonal matrix and R for an upper triangular matrix. This type of decomposition enables efficient calculations and analysis of large datasets in Spark environments.
 
 In Spark, there are several functions for calculating QR decomposition, depending on the property of the matrix at hand. In the present use case of a RowMatrix, the tallSkinnyQR() function is best suited because it is optimized specifically for RawMatrices. The computeQR() method is suitable as a generalist for any matrix, but is not optimized for any particular shape and is therefore misfit. The tallSkinnyQR() function has the boolean parameter computeQ as input parameter. With computeQ = True, both R-matrix and Q-matrix are computed. With computeQ = False only the R-matrix is calculated. For the calculation of the betas both matrices are needed, therefore the tallSkinnyQR method is passed the boolean TRUE as input parameter. The Apache Spark documentation was used as a literature source, in particular the page on the RowMatrix class [@spark_svd]. Since the dataMatrix has dimensions n x k, the QR.Q matrix has dimensions n x n and the upper triangular matrix has dimensions n x k.
 
-In the next step the inverse of the R matrix is calculated. Since PySpark is specialized for the calculation of large data sets, there is no direct method to calculate the inverse. For the local calculation of the inverse the method np.linalg.inv() of the numpy library is suitable, because numpy is optimized for the numerical calculations of matrices, vectors and arrays. To use the np.linalg.inv() method correctly, the R matrix is converted to a numpy matrix using the np.asmatrix() function. The np.asmatrix() again expects a numpy array as input parameter to perform the conversion. For this reason the result is passed to QR.R.toArray() which converts the R matrix into a numpy array. The dimension for the inverse of the R matrix is k x k. The inverse is a smaller dimension compared to "n".
+In the next step the inverse of the R matrix is calculated. Since PySpark is specialized for the calculation of distributed data sets, there is no direct method to calculate the inverse. For the local calculation of the inverse the method np.linalg.inv() of the numpy library is suitable, because numpy is optimized for the numerical calculations of matrices, vectors and arrays. To use the np.linalg.inv() method correctly, the R matrix is converted to a numpy matrix using the np.asmatrix() function. The np.asmatrix() again expects a numpy array as input parameter to perform the conversion. For this reason the result is passed to QR.R.toArray() which converts the R matrix into a numpy array. The dimension for the inverse of the R matrix is k x k. The inverse is a smaller dimension compared to "n".
 
 In the next step, the transpose of the Q matrix is formed. Since the RowMatrix in PySpark does not have a transpose method, other distributed approaches are needed. For this, a CoordinateMatrix is created using so-called "MatrixEntry" objects. With QR.Q.rows.zipWithIndex() an index is passed to each vector in the RDD. This is necessary to correctly assign the rows and columns of the transposed matrix later. With flatMap() a function is applied to all elements of the RDD. Since as described "MatrixEntry" objects are necessary for the creation of the CoordinateMatrix, the transformation of the elements in the RDD into a list of "MatrixEntry" objects is done with the help of flatMap() [@spark_CM]. This approach allows efficient computation of the transposed Q-matrix in a distributed Spark environment, especially to ensure scalability and performance. For the transposed Q-matrix the dimension k x n follows.
 
-Subsequently, the values of the dependent variable "y" are represented as a single-column matrix. In order to multiply "y" with a RawMatrix, a compatible data structure is required. PySpark offers the DenseMatrix as a suitable multiplicant. To create the DenseMatrix accordingly, the data array is required in addition to the input parameters numRows and numCols [@spark_DM]. To achieve this, dataDF.select("y").toPandas().to_numpy().ravel() converts the column "y" from the DataFrame "dataDF" into a pandas dataframe and finally into a Numpy array. With ravel() an exclusively one-dimensional vector is stored.
+Subsequently, the values of the dependent variable "y" are represented as a single-column matrix. In order to multiply "y" with a RawMatrix, a compatible data structure is required. PySpark offers the DenseMatrix as a suitable multiplier. To create the DenseMatrix accordingly, the data array is required in addition to the input parameters numRows and numCols [@spark_DM]. To achieve this, dataDF.select("y").toPandas().to_numpy().ravel() converts the column "y" from the DataFrame "dataDF" into a pandas dataframe and finally into a Numpy array. With ravel() an exclusively one-dimensional vector is stored.
 
 Finally, the matrix multiplications are performed. For this, in the first step "Q_T" and "y" are multiplied with multiply, a function from the PySpark framework. With rows.collect() the calculations of the Spark driver nodes are returned to a local data structure, in this case a Python list is suitable.  With np.matmul(), the matrices are multiplied together locally after appropriate conversion. Thus the matrix multiplication k x k * k x 1 is available. In the end, the results of the OLS estimation, the true betas and the total execution time are output. The implementation enables efficient and distributed processing of matrix operations by using Apache Spark, and local matrix multiplication by applying the Numpy library.
 
